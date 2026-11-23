@@ -22,6 +22,8 @@ def validate_joke(joke: str) -> None:
         raise ValueError("joke must not be blank or only whitespace")
     if "\n" in joke or "\r" in joke:
         raise ValueError("joke must be a single line (no newlines)")
+    if joke != joke.rstrip():
+        raise ValueError("joke must not have trailing whitespace")
     code_points = len(joke)
     if code_points < 1 or code_points > 280:
         raise ValueError(
@@ -34,8 +36,18 @@ def main() -> None:
     output_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", "/output")
     os.makedirs(output_dir, exist_ok=True)
     path = os.path.join(output_dir, "entry.txt")
-    with open(path, "w", encoding="utf-8", newline="\n") as f:
-        f.write(JOKE + "\n")
+    expected = (JOKE + "\n").encode("utf-8")
+    with open(path, "wb") as f:
+        f.write(expected)
+    # Verify what was actually written: exact bytes, exactly one
+    # trailing newline, and the stored line still passes validation.
+    with open(path, "rb") as f:
+        written = f.read()
+    if written != expected:
+        raise ValueError("entry.txt bytes differ from the validated joke")
+    if not written.endswith(b"\n") or written.endswith(b"\n\n"):
+        raise ValueError("entry.txt must end with exactly one trailing newline")
+    validate_joke(written[:-1].decode("utf-8"))
 
 
 if __name__ == "__main__":
